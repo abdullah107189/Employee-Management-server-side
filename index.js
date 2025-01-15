@@ -79,12 +79,18 @@ async function run() {
       const result = await workSheetCollection.insertOne(sheet);
       res.send(result);
     });
+
     app.get("/work-sheet/:email", async (req, res) => {
       const email = req.params.email;
       const result = await workSheetCollection
         .find({ email })
         .sort({ date: -1 })
         .toArray();
+      res.send(result);
+    });
+
+    app.get("/work-sheet", async (req, res) => {
+      const result = await workSheetCollection.find().toArray();
       res.send(result);
     });
 
