@@ -125,6 +125,41 @@ async function run() {
       res.send(result);
     });
 
+    // api for HR progress route
+    app.get("/progress", async (req, res) => {
+      console.log("hitt");
+      const { filterName, filterDate } = req.query;
+      let query = {};
+
+      // Filter by name
+      if (filterName) {
+        query.name = filterName;
+      }
+
+      // Filter by date
+      if (filterDate) {
+        const date = new Date(filterDate); // Convert string to Date object
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+        query.date = {
+          $gte: startOfMonth,
+          $lte: endOfMonth,
+        };
+      }
+
+      console.log(query);
+
+      try {
+        const filterSheet = await workSheetCollection.find(query).toArray();
+        console.log("hit", filterSheet);
+        res.send(filterSheet);
+      } catch (error) {
+        console.error("Error fetching progress data:", error);
+        res.status(500).send({ message: "Server Error" });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
