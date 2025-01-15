@@ -31,7 +31,7 @@ async function run() {
       res.send("Hello World!");
     });
 
-    // user
+    // set user
     app.post("/setUser", async (req, res) => {
       const user = req.body;
       const findEmail = await userCollection.findOne({
@@ -43,6 +43,12 @@ async function run() {
           .send("Conflict: Image already exists in the collection");
       }
       const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // get all users
+    app.get("/allUser", async (req, res) => {
+      const result = await userCollection.find().toArray();
       res.send(result);
     });
 
@@ -81,8 +87,8 @@ async function run() {
           date: updateSheet.date,
         },
       };
-      const result = await workSheetCollection.updateOne(filter, updateDoc)
-      res.send(result)
+      const result = await workSheetCollection.updateOne(filter, updateDoc);
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
