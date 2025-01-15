@@ -26,6 +26,7 @@ async function run() {
     const db = client.db("Employee_Management");
     const userCollection = db.collection("user");
     const workSheetCollection = db.collection("work_sheet");
+    const payRequestCollection = db.collection("payment_request");
 
     app.get("/", (req, res) => {
       res.send("Hello World!");
@@ -108,6 +109,13 @@ async function run() {
         },
       };
       const result = await workSheetCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    // payment request
+    app.post("/payRequest", async (req, res) => {
+      const reqestBody = req.body;
+      const result = await payRequestCollection.insertOne(reqestBody);
       res.send(result);
     });
 
