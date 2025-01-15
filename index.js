@@ -52,6 +52,26 @@ async function run() {
       res.send(result);
     });
 
+    // verified set up by HR
+    app.patch("/verifyChange/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const findVerify = await userCollection.findOne(filter);
+      let result = {};
+      if (findVerify.isVerified === false) {
+        result = await userCollection.updateOne(filter, {
+          $set: { isVerified: true },
+        });
+      } else {
+        result = await userCollection.updateOne(filter, {
+          $set: {
+            isVerified: false,
+          },
+        });
+      }
+      res.send(result);
+    });
+
     // employee work sheet
     app.post("/work-sheet", async (req, res) => {
       const sheet = req.body;
