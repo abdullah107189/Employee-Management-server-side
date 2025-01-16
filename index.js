@@ -96,6 +96,25 @@ async function run() {
       res.send(result);
     });
 
+    // hr -> employee || employee -> hr
+    app.patch("/change/role/:email", async (req, res) => {
+      const { email } = req.params;
+      const filter = { "userInfo.email": email };
+      const roleChange = req.body.role;
+      let role = {};
+      if (roleChange === "hr") {
+        role = { role: "employee" };
+      }
+      if (roleChange === "employee") {
+        role = { role: "hr" };
+      }
+      const updateDoc = {
+        $set: role,
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // verified set up by HR
     app.patch("/verifyChange/:id", async (req, res) => {
       const id = req.params.id;
