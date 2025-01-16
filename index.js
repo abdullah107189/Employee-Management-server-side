@@ -59,6 +59,20 @@ async function run() {
       res.send(result);
     });
 
+    // update salary
+    app.patch("/user/update/:id", async (req, res) => {
+      const id = req.params.id;
+      const salary = req.body.salary;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          salary: salary,
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // verified set up by HR
     app.patch("/verifyChange/:id", async (req, res) => {
       const id = req.params.id;
