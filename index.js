@@ -32,6 +32,12 @@ async function run() {
       res.send("Hello World!");
     });
 
+    app.get("/checkRole/:email", async (req, res) => {
+      const { email } = req.params;
+      const filter = { "userInfo.email": email };
+      const checkRole = await userCollection.findOne(filter);
+      res.send(checkRole.role);
+    });
     // set user
     app.post("/setUser", async (req, res) => {
       const user = req.body;
@@ -39,21 +45,21 @@ async function run() {
         "userInfo.email": user.userInfo.email,
       });
       if (findEmail) {
-        return res
-          .status(409)
-          .send("Conflict: Image already exists in the collection");
+        return;
       }
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
 
-    // get all users
+    // get all users  ||verify||fired||
     app.get("/allUser", async (req, res) => {
       const verified = req.query.isVerify;
       const { isFiredEmail } = req.query;
       if (verified) {
         return res.send(
-          await userCollection.find({ isVerified: true }).toArray()
+          await userCollection
+            .find({ isVerified: true, role: { $in: ["employee", "hr"] } })
+            .toArray()
         );
       }
       if (isFiredEmail) {
