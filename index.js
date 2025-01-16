@@ -49,6 +49,12 @@ async function run() {
 
     // get all users
     app.get("/allUser", async (req, res) => {
+      const verified = req.query.isVerify;
+      if (verified) {
+        return res.send(
+          await userCollection.find({ isVerified: true }).toArray()
+        );
+      }
       const result = await userCollection.find().toArray();
       res.send(result);
     });
@@ -127,37 +133,21 @@ async function run() {
 
     // api for HR progress route
     app.get("/progress", async (req, res) => {
-      console.log("hitt");
       const { filterName, filterDate } = req.query;
       let query = {};
 
-      // Filter by name
-      if (filterName) {
+      if (filterName === "all" && filterDate === "all") {
+        query = {};
+      } else if (filterName !== "all" && filterDate === "all") {
         query.name = filterName;
+      } else if (filterName === "all" && filterDate !== "all") {
+        query.monthAndYear = filterDate;
+      } else {
+        query.name = filterName;
+        query.monthAndYear = filterDate;
       }
-
-      // Filter by date
-      if (filterDate) {
-        const date = new Date(filterDate); // Convert string to Date object
-        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-
-        query.date = {
-          $gte: startOfMonth,
-          $lte: endOfMonth,
-        };
-      }
-
-      console.log(query);
-
-      try {
-        const filterSheet = await workSheetCollection.find(query).toArray();
-        console.log("hit", filterSheet);
-        res.send(filterSheet);
-      } catch (error) {
-        console.error("Error fetching progress data:", error);
-        res.status(500).send({ message: "Server Error" });
-      }
+      const filterSheet = await workSheetCollection.find(query).toArray();
+      res.send(filterSheet);
     });
 
     await client.db("admin").command({ ping: 1 });
