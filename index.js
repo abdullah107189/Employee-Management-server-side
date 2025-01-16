@@ -50,10 +50,19 @@ async function run() {
     // get all users
     app.get("/allUser", async (req, res) => {
       const verified = req.query.isVerify;
+      const { isFiredEmail } = req.query;
       if (verified) {
         return res.send(
           await userCollection.find({ isVerified: true }).toArray()
         );
+      }
+      if (isFiredEmail) {
+        const isMatch = await userCollection.findOne({
+          "userInfo.email": isFiredEmail,
+        });
+        if (isMatch.isFired === true) {
+          return res.status(409).send({ message: "You are fired 😷" });
+        }
       }
       const result = await userCollection.find().toArray();
       res.send(result);
