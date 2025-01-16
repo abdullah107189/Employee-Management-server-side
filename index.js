@@ -196,6 +196,14 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/payment/history/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await payRequestCollection
+        .find({ employeeEmail: email })
+        .toArray();
+      res.send(result);
+    });
+
     // payment update with patch
     app.patch("/payment-update/:id", async (req, res) => {
       const { paymentDate } = req.query;
