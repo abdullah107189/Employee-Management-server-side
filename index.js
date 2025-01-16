@@ -127,7 +127,54 @@ async function run() {
     // payment request
     app.post("/payRequest", async (req, res) => {
       const reqestBody = req.body;
+      const isAxist = await payRequestCollection.findOne({
+        monthAndYear: reqestBody.monthAndYear,
+        employeeEmail: reqestBody.employeeEmail,
+      });
+      if (isAxist) {
+        return res
+          .status(409)
+          .send({ message: "This month/Year already sent to admin" });
+      }
       const result = await payRequestCollection.insertOne(reqestBody);
+      res.send(result);
+    });
+
+    app.get("/payRequest", async (req, res) => {
+      const result = await payRequestCollection
+        .aggregate([
+          {
+            $lookup: {
+              from: "user",
+              localField: "employeeEmail",
+              foreignField: "userInfo.email",
+              as: "employeeInfo",
+            },
+          },
+          {
+            $unwind: "$employeeInfo",
+          },
+          {
+            $match: {
+              "employeeInfo.isVerified": true,
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              employeeName: 1,
+              employeeEmail: 1,
+              salary: 1,
+              monthAndYear: 1,
+              isPaymentSuccess: 1,
+              designation: 1,
+              "employeeInfo.userInfo.photoUrl": 1,
+              "employeeInfo.bankAccountNo": 1,
+              "employeeInfo.designation": 1,
+            },
+          },
+        ])
+        .toArray();
       res.send(result);
     });
 
