@@ -73,6 +73,20 @@ async function run() {
       res.send(result);
     });
 
+    // fire employee/HR
+    app.patch("/fire/:email", async (req, res) => {
+      const { email } = req.params;
+      const filter = { "userInfo.email": email };
+      const updateDoc = {
+        $set: {
+          isFired: true,
+        },
+      };
+      const options = { upsert: true };
+      const result = await userCollection.updateOne(filter, updateDoc, options);
+      res.send(result);
+    });
+
     // verified set up by HR
     app.patch("/verifyChange/:id", async (req, res) => {
       const id = req.params.id;
