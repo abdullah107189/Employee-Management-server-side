@@ -74,6 +74,12 @@ async function run() {
       res.send(result);
     });
 
+    // only employee get
+    app.get("/onlyEmployee", async (req, res) => {
+      const result = await userCollection.find({ role: "employee" }).toArray();
+      res.send(result);
+    });
+
     // update salary
     app.patch("/user/update/:id", async (req, res) => {
       const id = req.params.id;
