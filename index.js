@@ -140,6 +140,30 @@ async function run() {
       res.send(result);
     });
 
+    // payment update with patch
+    app.patch("/payment-update/:id", async (req, res) => {
+      const { paymentDate } = req.query;
+      const id = req.params.id;
+      let transactionId = {};
+      transactionId = require("crypto").randomBytes(5).toString("hex");
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          isPaymentSuccess: true,
+          paymentDate: paymentDate,
+          transactionId: transactionId,
+        },
+      };
+      const options = { upsert: true };
+      const result = await payRequestCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    // get payment request with aggregate
     app.get("/payRequest", async (req, res) => {
       const result = await payRequestCollection
         .aggregate([
@@ -166,7 +190,9 @@ async function run() {
               employeeEmail: 1,
               salary: 1,
               monthAndYear: 1,
+              paymentDate: 1,
               isPaymentSuccess: 1,
+              transactionId: 1,
               designation: 1,
               "employeeInfo.userInfo.photoUrl": 1,
               "employeeInfo.bankAccountNo": 1,
