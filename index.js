@@ -23,8 +23,6 @@ const verifyToken = async (req, res, next) => {
   }
   jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
     if (err) {
-      console.log("verify token complete.....");
-      console.log(err);
       return res.status(403).send({ message: "Forbidden Access" });
     }
     req.user = decoded;
@@ -109,7 +107,8 @@ async function run() {
       res.send("Hello World!");
     });
 
-    app.get("/checkRole/:email", async (req, res) => {
+    // check role ✅
+    app.get("/checkRole/:email", verifyToken, async (req, res) => {
       const ParamsEmail = req.params.email;
       if (ParamsEmail) {
         const filter = { "userInfo.email": ParamsEmail };
@@ -154,61 +153,92 @@ async function run() {
       res.send(result);
     });
 
-    // only employee get
-    app.get("/onlyEmployee", async (req, res) => {
+    // set employee  work sheet ✅
+    app.post("/work-sheet", verifyToken, verifyEmployee, async (req, res) => {
+      const sheet = req.body;
+      const result = await workSheetCollection.insertOne(sheet);
+      res.send(result);
+    });
+
+    // get email match data ✅
+    app.get(
+      "/work-sheet/:email",
+      verifyToken,
+      verifyEmployee,
+      async (req, res) => {
+        const email = req.params.email;
+        const result = await workSheetCollection
+          .find({ email })
+          .sort({ date: -1 })
+          .toArray();
+        res.send(result);
+      }
+    );
+
+    // sheet delete ✅
+    app.delete(
+      "/work-sheet/:id",
+      verifyToken,
+      verifyEmployee,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await workSheetCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
+
+    // sheet update ✅
+    app.patch(
+      "/work-sheet/update/:id",
+      verifyToken,
+      verifyEmployee,
+      async (req, res) => {
+        const { updateSheet } = req.body;
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            work: updateSheet.work,
+            hours: updateSheet.hours,
+            date: updateSheet.date,
+          },
+        };
+        const result = await workSheetCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      }
+    );
+
+    // show payment history only own payment ✅
+    app.get(
+      "/payment/history/:email",
+      verifyToken,
+      verifyEmployee,
+      async (req, res) => {
+        const email = req.params.email;
+        const result = await payRequestCollection
+          .find({ employeeEmail: email })
+          .toArray();
+        res.send(result);
+      }
+    );
+
+    //----------------------------------- hr ----------------------------------------
+
+    // only employee get show this route only HR ✅
+    app.get("/onlyEmployee", verifyToken, verifyHR, async (req, res) => {
       const result = await userCollection.find({ role: "employee" }).toArray();
       res.send(result);
     });
 
-    // update salary
-    app.patch("/user/update/:id", async (req, res) => {
-      const id = req.params.id;
-      const salary = req.body.salary;
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = {
-        $set: {
-          salary: salary,
-        },
-      };
-      const result = await userCollection.updateOne(filter, updateDoc);
+    // hr show all employee ❌
+    app.get("/work-sheet", async (req, res) => {
+      const result = await workSheetCollection.find().toArray();
       res.send(result);
     });
 
-    // fire employee/HR
-    app.patch("/fire/:email", async (req, res) => {
-      const { email } = req.params;
-      const filter = { "userInfo.email": email };
-      const updateDoc = {
-        $set: {
-          isFired: true,
-        },
-      };
-      const options = { upsert: true };
-      const result = await userCollection.updateOne(filter, updateDoc, options);
-      res.send(result);
-    });
-
-    // hr -> employee || employee -> hr
-    app.patch("/change/role/:email", async (req, res) => {
-      const { email } = req.params;
-      const filter = { "userInfo.email": email };
-      const roleChange = req.body.role;
-      let role = {};
-      if (roleChange === "hr") {
-        role = { role: "employee" };
-      }
-      if (roleChange === "employee") {
-        role = { role: "hr" };
-      }
-      const updateDoc = {
-        $set: role,
-      };
-      const result = await userCollection.updateOne(filter, updateDoc);
-      res.send(result);
-    });
-
-    // verified set up by HR
-    app.patch("/verifyChange/:id", async (req, res) => {
+    // verified set and remove up by HR ✅
+    app.patch("/verifyChange/:id", verifyToken, verifyHR, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const findVerify = await userCollection.findOne(filter);
@@ -227,60 +257,28 @@ async function run() {
       res.send(result);
     });
 
-    // set employee  work sheet
-    app.post("/work-sheet", verifyToken, verifyEmployee, async (req, res) => {
-      const sheet = req.body;
-      const result = await workSheetCollection.insertOne(sheet);
-      res.send(result);
-    });
+    // show all employee list and progress using dropdown - for HR progress route ✅
+    app.get("/progress", verifyToken, verifyHR, async (req, res) => {
+      const { filterName, filterDate } = req.query;
+      let query = {};
 
-    // get email match data
-    app.get(
-      "/work-sheet/:email",
-      // verifyToken,
-      // verifyEmployee,
-      async (req, res) => {
-        const email = req.params.email;
-        const result = await workSheetCollection
-          .find({ email })
-          .sort({ date: -1 })
-          .toArray();
-        res.send(result);
+      if (filterName === "all" && filterDate === "all") {
+        query = {};
+      } else if (filterName !== "all" && filterDate === "all") {
+        query.name = filterName;
+      } else if (filterName === "all" && filterDate !== "all") {
+        query.monthAndYear = filterDate;
+      } else {
+        query.name = filterName;
+        query.monthAndYear = filterDate;
       }
-    );
-
-    // hr show all employee
-    app.get("/work-sheet", async (req, res) => {
-      const result = await workSheetCollection.find().toArray();
-      res.send(result);
+      const filterSheet = await workSheetCollection.find(query).toArray();
+      res.send(filterSheet);
     });
 
-    // sheet delete
-    app.delete("/work-sheet/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await workSheetCollection.deleteOne(query);
-      res.send(result);
-    });
-
-    // sheet update
-    app.patch("/work-sheet/update/:id", async (req, res) => {
-      const { updateSheet } = req.body;
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = {
-        $set: {
-          work: updateSheet.work,
-          hours: updateSheet.hours,
-          date: updateSheet.date,
-        },
-      };
-      const result = await workSheetCollection.updateOne(filter, updateDoc);
-      res.send(result);
-    });
-
-    // payment request
-    app.post("/payRequest", async (req, res) => {
+    // =========================== admin ====================
+    // payment request  ✅
+    app.post("/payRequest", verifyToken, verifyAdmin, async (req, res) => {
       const reqestBody = req.body;
       const isAxist = await payRequestCollection.findOne({
         monthAndYear: reqestBody.monthAndYear,
@@ -295,39 +293,74 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/payment/history/:email", async (req, res) => {
-      const email = req.params.email;
-      const result = await payRequestCollection
-        .find({ employeeEmail: email })
-        .toArray();
-      res.send(result);
-    });
-
-    // payment update with patch
-    app.patch("/payment-update/:id", async (req, res) => {
-      const { paymentDate } = req.query;
-      const id = req.params.id;
-      let transactionId = {};
-      transactionId = require("crypto").randomBytes(5).toString("hex");
-      const filter = { _id: new ObjectId(id) };
+    // fire employee/HR ✅
+    app.patch("/fire/:email", verifyToken, verifyAdmin, async (req, res) => {
+      const { email } = req.params;
+      const filter = { "userInfo.email": email };
       const updateDoc = {
         $set: {
-          isPaymentSuccess: true,
-          paymentDate: paymentDate,
-          transactionId: transactionId,
+          isFired: true,
         },
       };
       const options = { upsert: true };
-      const result = await payRequestCollection.updateOne(
-        filter,
-        updateDoc,
-        options
-      );
+      const result = await userCollection.updateOne(filter, updateDoc, options);
       res.send(result);
     });
 
-    // get payment request with aggregate
-    app.get("/payRequest", async (req, res) => {
+    // hr -> employee || employee -> hr ✅
+    app.patch(
+      "/change/role/:email",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { email } = req.params;
+        const filter = { "userInfo.email": email };
+        const roleChange = req.body.role;
+        let role = {};
+        if (roleChange === "hr") {
+          role = { role: "employee" };
+        }
+        if (roleChange === "employee") {
+          role = { role: "hr" };
+        }
+        const updateDoc = {
+          $set: role,
+        };
+        const result = await userCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      }
+    );
+
+    // payment update with patch ✅
+    app.patch(
+      "/payment-update/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { paymentDate } = req.query;
+        const id = req.params.id;
+        let transactionId = {};
+        transactionId = require("crypto").randomBytes(5).toString("hex");
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            isPaymentSuccess: true,
+            paymentDate: paymentDate,
+            transactionId: transactionId,
+          },
+        };
+        const options = { upsert: true };
+        const result = await payRequestCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      }
+    );
+
+    // get payment request with aggregate ✅
+    app.get("/payRequest", verifyToken, verifyAdmin, async (req, res) => {
       const result = await payRequestCollection
         .aggregate([
           {
@@ -367,23 +400,18 @@ async function run() {
       res.send(result);
     });
 
-    // api for HR progress route
-    app.get("/progress", async (req, res) => {
-      const { filterName, filterDate } = req.query;
-      let query = {};
-
-      if (filterName === "all" && filterDate === "all") {
-        query = {};
-      } else if (filterName !== "all" && filterDate === "all") {
-        query.name = filterName;
-      } else if (filterName === "all" && filterDate !== "all") {
-        query.monthAndYear = filterDate;
-      } else {
-        query.name = filterName;
-        query.monthAndYear = filterDate;
-      }
-      const filterSheet = await workSheetCollection.find(query).toArray();
-      res.send(filterSheet);
+    // update salary ✅
+    app.patch("/user/update/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const salary = req.body.salary;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          salary: salary,
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
