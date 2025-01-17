@@ -3,15 +3,23 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const port = 4545 || process.env.PORT;
+const jwt = require("jsonwebtoken");
+var cookieParser = require("cookie-parser");
 
 // middleware
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:5174"],
+    credentials: true,
+  })
+);
+app.use(cookieParser());
+
+const verifyUser = (req, res, next) => {};
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.fx40ttv.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -28,6 +36,27 @@ async function run() {
     const workSheetCollection = db.collection("work_sheet");
     const payRequestCollection = db.collection("payment_request");
 
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    };
+    // jwt sign
+    app.post("/jwt-sign", async (req, res) => {
+      const userInfo = req.body;
+      const token = jwt.sign(userInfo, process.env.ACCESS_TOKEN, {
+        expiresIn: "1h",
+      });
+      res.cookie("token", token, cookieOptions).send({ success: true });
+    });
+
+    // jwt logout
+    app.post("/jwt-logout", async (req, res) => {
+      res
+        .clearCookie("token", { ...cookieOptions, maxAge: 0 })
+        .send({ success: true });
+    });
+
     app.get("/", (req, res) => {
       res.send("Hello World!");
     });
@@ -36,7 +65,7 @@ async function run() {
       const { email } = req.params;
       const filter = { "userInfo.email": email };
       const checkRole = await userCollection.findOne(filter);
-      res.send(checkRole.role);
+      res.send(checkRole?.role);
     });
     // set user
     app.post("/setUser", async (req, res) => {
