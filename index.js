@@ -16,7 +16,19 @@ app.use(
 );
 app.use(cookieParser());
 
-const verifyUser = (req, res, next) => {};
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized Access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+    if (err) {
+      return res.status(403).send({ message: "Forbidden Access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.fx40ttv.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -35,6 +47,19 @@ async function run() {
     const userCollection = db.collection("user");
     const workSheetCollection = db.collection("work_sheet");
     const payRequestCollection = db.collection("payment_request");
+
+    // verify employee
+    const verifyEmployee = async (req, res, next) => {
+      console.log(req.user.email);
+      const find = await userCollection.findOne({
+        "userInfo.email": req.user.email,
+      });
+      const role = find.role;
+      if (role !== "employee") {
+        return res.status(403).send({ message: "Unauthorized access" });
+      }
+      next();
+    };
 
     const cookieOptions = {
       httpOnly: true,
@@ -176,22 +201,30 @@ async function run() {
       res.send(result);
     });
 
-    // employee work sheet
+    // set employee  work sheet
     app.post("/work-sheet", async (req, res) => {
       const sheet = req.body;
       const result = await workSheetCollection.insertOne(sheet);
       res.send(result);
     });
 
-    app.get("/work-sheet/:email", async (req, res) => {
-      const email = req.params.email;
-      const result = await workSheetCollection
-        .find({ email })
-        .sort({ date: -1 })
-        .toArray();
-      res.send(result);
-    });
+    // get email match data
+    app.get(
+      "/work-sheet/:email",
+      verifyToken,
+      verifyEmployee,
+      async (req, res) => {
+        console.log("hit");
+        const email = req.params.email;
+        const result = await workSheetCollection
+          .find({ email })
+          .sort({ date: -1 })
+          .toArray();
+        res.send(result);
+      }
+    );
 
+    // hr show all employee
     app.get("/work-sheet", async (req, res) => {
       const result = await workSheetCollection.find().toArray();
       res.send(result);
