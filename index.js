@@ -23,6 +23,8 @@ const verifyToken = async (req, res, next) => {
   }
   jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
     if (err) {
+      console.log("verify token complete.....");
+      console.log(err);
       return res.status(403).send({ message: "Forbidden Access" });
     }
     req.user = decoded;
@@ -50,12 +52,33 @@ async function run() {
 
     // verify employee
     const verifyEmployee = async (req, res, next) => {
-      console.log(req.user.email);
       const find = await userCollection.findOne({
         "userInfo.email": req.user.email,
       });
       const role = find.role;
       if (role !== "employee") {
+        return res.status(403).send({ message: "Unauthorized access" });
+      }
+      next();
+    };
+    // verify HR
+    const verifyHR = async (req, res, next) => {
+      const find = await userCollection.findOne({
+        "userInfo.email": req.user.email,
+      });
+      const role = find.role;
+      if (role !== "hr") {
+        return res.status(403).send({ message: "Unauthorized access" });
+      }
+      next();
+    };
+    // verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const find = await userCollection.findOne({
+        "userInfo.email": req.user.email,
+      });
+      const role = find.role;
+      if (role !== "admin") {
         return res.status(403).send({ message: "Unauthorized access" });
       }
       next();
@@ -87,11 +110,14 @@ async function run() {
     });
 
     app.get("/checkRole/:email", async (req, res) => {
-      const { email } = req.params;
-      const filter = { "userInfo.email": email };
-      const checkRole = await userCollection.findOne(filter);
-      res.send(checkRole?.role);
+      const ParamsEmail = req.params.email;
+      if (ParamsEmail) {
+        const filter = { "userInfo.email": ParamsEmail };
+        const checkRole = await userCollection.findOne(filter);
+        res.send(checkRole?.role);
+      }
     });
+
     // set user
     app.post("/setUser", async (req, res) => {
       const user = req.body;
@@ -202,7 +228,7 @@ async function run() {
     });
 
     // set employee  work sheet
-    app.post("/work-sheet", async (req, res) => {
+    app.post("/work-sheet", verifyToken, verifyEmployee, async (req, res) => {
       const sheet = req.body;
       const result = await workSheetCollection.insertOne(sheet);
       res.send(result);
@@ -211,10 +237,9 @@ async function run() {
     // get email match data
     app.get(
       "/work-sheet/:email",
-      verifyToken,
-      verifyEmployee,
+      // verifyToken,
+      // verifyEmployee,
       async (req, res) => {
-        console.log("hit");
         const email = req.params.email;
         const result = await workSheetCollection
           .find({ email })
