@@ -156,9 +156,6 @@ async function run() {
     app.get("/details/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
-      // const result = await userCollection.findOne({
-      //   role: { $in: ["employee", "hr"] },
-      // });
       const result = await userCollection
         .aggregate([
           {
@@ -172,6 +169,7 @@ async function run() {
               as: "paymentInfo",
             },
           },
+          // get payment success true data
           {
             $project: {
               _id: 1,
@@ -186,6 +184,7 @@ async function run() {
               },
             },
           },
+
           {
             $project: {
               _id: 1,
@@ -201,6 +200,24 @@ async function run() {
                   },
                 },
               },
+            },
+          },
+          {
+            $addFields: {
+              paymentInfo: {
+                $sortArray: {
+                  input: "$paymentInfo",
+                  sortBy: { monthAndYear: 1 },
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              userInfo: 1,
+              designation: 1,
+              paymentInfo: 1,
             },
           },
         ])
@@ -270,6 +287,14 @@ async function run() {
 
       async (req, res) => {
         const email = req.params.email;
+        const page = parseInt(req.query.page);
+        const limit = parseInt(req.query.limit);
+        const skip = (page - 1) * limit;
+        const count = await payRequestCollection.countDocuments({
+          employeeEmail: email,
+          isPaymentSuccess: true,
+        });
+        console.log(count);
         const result = await payRequestCollection
           .aggregate([
             {
@@ -309,12 +334,12 @@ async function run() {
               $project: {
                 _id: 0,
                 firstPayment: 1,
-                allPayment: 1,
+                allPayment: { $slice: ["$allPayment", skip, limit] },
               },
             },
-          ]) 
+          ])
           .toArray();
-        res.send(result);
+        res.send({ result: result, count: count });
       }
     );
 
@@ -326,8 +351,8 @@ async function run() {
       res.send(result);
     });
 
-    // hr show all employee ❌
-    app.get("/work-sheet", async (req, res) => {
+    // hr show all employee ✅
+    app.get("/work-sheet", verifyToken, verifyHR, async (req, res) => {
       const result = await workSheetCollection.find().toArray();
       res.send(result);
     });
