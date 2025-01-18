@@ -206,7 +206,6 @@ async function run() {
         ])
         .toArray();
 
-        
       res.send(result);
     });
     // set employee  work sheet ✅
@@ -268,12 +267,52 @@ async function run() {
     // show payment history only own payment ✅
     app.get(
       "/payment/history/:email",
-      verifyToken,
-      verifyEmployee,
+
       async (req, res) => {
         const email = req.params.email;
         const result = await payRequestCollection
-          .find({ employeeEmail: email })
+          .aggregate([
+            {
+              $match: { employeeEmail: email, isPaymentSuccess: true },
+            },
+            {
+              $sort: { paymentDate: -1 },
+            },
+            {
+              $group: {
+                _id: null,
+                firstPayment: { $first: "$$ROOT" },
+                allPayment: { $push: "$$ROOT" },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                firstPayment: 1,
+                allPayment: 1,
+              },
+            },
+            {
+              $unwind: "$allPayment",
+            },
+            {
+              $sort: { "allPayment.paymentDate": 1 },
+            },
+            {
+              $group: {
+                _id: null,
+                firstPayment: { $first: "$firstPayment" },
+                allPayment: { $push: "$allPayment" },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                firstPayment: 1,
+                allPayment: 1,
+              },
+            },
+          ]) 
           .toArray();
         res.send(result);
       }
