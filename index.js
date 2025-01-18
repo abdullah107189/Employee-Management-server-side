@@ -153,6 +153,62 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/details/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      // const result = await userCollection.findOne({
+      //   role: { $in: ["employee", "hr"] },
+      // });
+      const result = await userCollection
+        .aggregate([
+          {
+            $match: filter,
+          },
+          {
+            $lookup: {
+              from: "payment_request",
+              localField: "userInfo.email",
+              foreignField: "employeeEmail",
+              as: "paymentInfo",
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              userInfo: 1,
+              designation: 1,
+              paymentInfo: {
+                $filter: {
+                  input: "$paymentInfo",
+                  as: "payment",
+                  cond: { $eq: ["$$payment.isPaymentSuccess", true] },
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              userInfo: 1,
+              designation: 1,
+              paymentInfo: {
+                $map: {
+                  input: "$paymentInfo",
+                  as: "payment",
+                  in: {
+                    monthAndYear: "$$payment.monthAndYear",
+                    salary: "$$payment.salary",
+                  },
+                },
+              },
+            },
+          },
+        ])
+        .toArray();
+
+        
+      res.send(result);
+    });
     // set employee  work sheet ✅
     app.post("/work-sheet", verifyToken, verifyEmployee, async (req, res) => {
       const sheet = req.body;
@@ -276,9 +332,8 @@ async function run() {
       res.send(filterSheet);
     });
 
-    // =========================== admin ====================
-    // payment request  ✅
-    app.post("/payRequest", verifyToken, verifyAdmin, async (req, res) => {
+    // payment request sent  ✅
+    app.post("/payRequest", verifyToken, verifyHR, async (req, res) => {
       const reqestBody = req.body;
       const isAxist = await payRequestCollection.findOne({
         monthAndYear: reqestBody.monthAndYear,
@@ -292,6 +347,7 @@ async function run() {
       const result = await payRequestCollection.insertOne(reqestBody);
       res.send(result);
     });
+    // =========================== admin ====================
 
     // fire employee/HR ✅
     app.patch("/fire/:email", verifyToken, verifyAdmin, async (req, res) => {
@@ -401,18 +457,23 @@ async function run() {
     });
 
     // update salary ✅
-    app.patch("/user/update/:id", verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const salary = req.body.salary;
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = {
-        $set: {
-          salary: salary,
-        },
-      };
-      const result = await userCollection.updateOne(filter, updateDoc);
-      res.send(result);
-    });
+    app.patch(
+      "/user/update/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const salary = req.body.salary;
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            salary: salary,
+          },
+        };
+        const result = await userCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      }
+    );
 
     await client.db("admin").command({ ping: 1 });
     console.log(
