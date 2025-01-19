@@ -1,5 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const stripe = require("stripe")(`${process.env.STRIPE_SECRET_KEY}`);
+
 const app = express();
 const cors = require("cors");
 const port = 4545 || process.env.PORT;
@@ -225,6 +227,8 @@ async function run() {
 
       res.send(result);
     });
+
+    // -------------------------employee-----------------------
     // set employee  work sheet ✅
     app.post("/work-sheet", verifyToken, verifyEmployee, async (req, res) => {
       const sheet = req.body;
@@ -284,7 +288,8 @@ async function run() {
     // show payment history only own payment ✅
     app.get(
       "/payment/history/:email",
-
+      verifyToken,
+      verifyEmployee,
       async (req, res) => {
         const email = req.params.email;
         const page = parseInt(req.query.page);
@@ -294,14 +299,13 @@ async function run() {
           employeeEmail: email,
           isPaymentSuccess: true,
         });
-        console.log(count);
         const result = await payRequestCollection
           .aggregate([
             {
               $match: { employeeEmail: email, isPaymentSuccess: true },
             },
             {
-              $sort: { paymentDate: -1 },
+              $sort: { paymentDate: 1 },
             },
             {
               $group: {
@@ -321,7 +325,7 @@ async function run() {
               $unwind: "$allPayment",
             },
             {
-              $sort: { "allPayment.paymentDate": 1 },
+              $sort: { "allPayment.paymentDate": -1 },
             },
             {
               $group: {
@@ -457,10 +461,8 @@ async function run() {
       verifyToken,
       verifyAdmin,
       async (req, res) => {
-        const { paymentDate } = req.query;
+        const { paymentDate, transactionId } = req.query;
         const id = req.params.id;
-        let transactionId = {};
-        transactionId = require("crypto").randomBytes(5).toString("hex");
         const filter = { _id: new ObjectId(id) };
         const updateDoc = {
           $set: {
@@ -469,6 +471,7 @@ async function run() {
             transactionId: transactionId,
           },
         };
+        console.log(paymentDate, transactionId);
         const options = { upsert: true };
         const result = await payRequestCollection.updateOne(
           filter,
@@ -538,6 +541,32 @@ async function run() {
         res.send(result);
       }
     );
+
+    app.get(
+      "/hrAndEmployeeDetails/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await userCollection.findOne(query);
+        res.send(result);
+      }
+    );
+
+    // -------------payment------------
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
