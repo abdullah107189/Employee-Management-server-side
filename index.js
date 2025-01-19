@@ -325,7 +325,7 @@ async function run() {
               $unwind: "$allPayment",
             },
             {
-              $sort: { "allPayment.paymentDate": -1 },
+              $sort: { "allPayment.monthAndYear": -1 },
             },
             {
               $group: {
