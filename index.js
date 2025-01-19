@@ -12,17 +12,28 @@ var cookieParser = require("cookie-parser");
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://employee-managment-49560.firebaseapp.com",
+      "https://employee-managment-49560.web.app",
+    ],
     credentials: true,
   })
 );
 app.use(cookieParser());
 
 const verifyToken = async (req, res, next) => {
-  const token = req.cookies?.token;
-  if (!token) {
+  if (!req.headers.authorization) {
     return res.status(401).send({ message: "Unauthorized Access" });
   }
+  console.log("1,..", req.headers.authorization);
+  const token = req.headers.authorization.split(" ")[1];
+  console.log("2,..", token);
+  if (!token) {
+    return res.status(401).send("unauthorized access");
+  }
+  console.log(token);
   jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
     if (err) {
       return res.status(403).send({ message: "Forbidden Access" });
@@ -44,7 +55,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
     const db = client.db("Employee_Management");
     const userCollection = db.collection("user");
     const workSheetCollection = db.collection("work_sheet");
@@ -95,7 +106,8 @@ async function run() {
       const token = jwt.sign(userInfo, process.env.ACCESS_TOKEN, {
         expiresIn: "1h",
       });
-      res.cookie("token", token, cookieOptions).send({ success: true });
+      // res.cookie("token", token, cookieOptions).send({ success: true });
+      res.send({ token });
     });
 
     // jwt logout
@@ -471,7 +483,7 @@ async function run() {
             transactionId: transactionId,
           },
         };
-        console.log(paymentDate, transactionId);
+
         const options = { upsert: true };
         const result = await payRequestCollection.updateOne(
           filter,
@@ -568,7 +580,7 @@ async function run() {
       });
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
