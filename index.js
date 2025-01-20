@@ -60,6 +60,7 @@ async function run() {
     const userCollection = db.collection("user");
     const workSheetCollection = db.collection("work_sheet");
     const payRequestCollection = db.collection("payment_request");
+    const contactUsCollection = db.collection("contact_us");
 
     // verify employee
     const verifyEmployee = async (req, res, next) => {
@@ -554,6 +555,7 @@ async function run() {
       }
     );
 
+    // handle hr and employee detials
     app.get(
       "/hrAndEmployeeDetails/:id",
       verifyToken,
@@ -580,6 +582,16 @@ async function run() {
       });
     });
 
+    // -----contact us -----------
+    app.post("/contact-us", verifyToken, verifyAdmin, async (req, res) => {
+      const data = req.body;
+      const result = await contactUsCollection.insertOne(data);
+      res.send(result);
+    });
+    app.get("/contact-us", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await contactUsCollection.find().toArray();
+      res.send(result);
+    });
     // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
