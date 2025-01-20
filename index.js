@@ -4,7 +4,7 @@ const stripe = require("stripe")(`${process.env.STRIPE_SECRET_KEY}`);
 
 const app = express();
 const cors = require("cors");
-const port = 4545 || process.env.PORT;
+const port = process.env.PORT || 4545;
 const jwt = require("jsonwebtoken");
 var cookieParser = require("cookie-parser");
 
