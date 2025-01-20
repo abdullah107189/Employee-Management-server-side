@@ -1,27 +1,14 @@
 require("dotenv").config();
 const express = require("express");
 const stripe = require("stripe")(`${process.env.STRIPE_SECRET_KEY}`);
-
 const app = express();
 const cors = require("cors");
 const port = process.env.PORT || 4545;
 const jwt = require("jsonwebtoken");
-var cookieParser = require("cookie-parser");
 
 // middleware
 app.use(express.json());
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://employee-managment-49560.firebaseapp.com",
-      "https://employee-managment-49560.web.app",
-    ],
-    credentials: true,
-  })
-);
-app.use(cookieParser());
+app.use(cors());
 
 const verifyToken = async (req, res, next) => {
   if (!req.headers.authorization) {
