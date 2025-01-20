@@ -54,7 +54,7 @@ This repository contains the server-side code for the **Employee Management Syst
 4. **Set up environment variables:**
    - Create a `.env` file in the root directory and add the following:
      ```env
-     PORT=5000
+     PORT=4545
      MONGODB_URI=your-mongodb-connection-string
      JWT_SECRET=your-secret-key
      STRIPE_SECRET_KEY=your-stripe-secret-key
