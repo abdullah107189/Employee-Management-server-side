@@ -14,13 +14,10 @@ const verifyToken = async (req, res, next) => {
   if (!req.headers.authorization) {
     return res.status(401).send({ message: "Unauthorized Access" });
   }
-  console.log("1,..", req.headers.authorization);
   const token = req.headers.authorization.split(" ")[1];
-  console.log("2,..", token);
   if (!token) {
     return res.status(401).send("unauthorized access");
   }
-  console.log(token);
   jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
     if (err) {
       return res.status(403).send({ message: "Forbidden Access" });
@@ -109,6 +106,11 @@ async function run() {
       res.send("Hello World!");
     });
 
+    app.get("/userInfo", verifyToken, async (req, res) => {
+      const { email } = req.query;
+      const user = await userCollection.findOne({ "userInfo.email": email });
+      res.send(user);
+    });
     // check role ✅
     app.get("/checkRole/:email", verifyToken, async (req, res) => {
       const ParamsEmail = req.params.email;
